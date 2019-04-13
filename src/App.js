@@ -1,28 +1,18 @@
-import React, { Component } from 'react';
-import logo from './logo.svg';
-import './App.css';
+import React from "react";
 
-class App extends Component {
-  render() {
-    return (
-      <div className="App">
-        <header className="App-header">
-          <img src={logo} className="App-logo" alt="logo" />
-          <p>
-            Edit <code>src/App.js</code> and save to reload.
-          </p>
-          <a
-            className="App-link"
-            href="https://reactjs.org"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Learn React
-          </a>
-        </header>
-      </div>
-    );
-  }
-}
+import Foo from "./Foo";
+import Bar from "./Bar";
+
+const App = props => {
+  return (
+    <div style={{ width: 425, margin: "auto", padding: 20 }}>
+      <Foo>
+        <Bar id="0">This is Bar 0</Bar>
+        <Bar id="1">This is Bar 1</Bar>
+        <Bar id="2">This is Bar 2</Bar>
+      </Foo>
+    </div>
+  );
+};
 
 export default App;
