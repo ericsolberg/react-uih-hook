@@ -60,7 +60,7 @@ const Foo = props => {
       {// Toggle button for each child
       children.map((child, key) => (
         <button onClick={() => toggle(key)} key={`toggle${key}`}>
-          toggle {key}
+          {`${showFlags[key][0] ? "Hide" : "Show"} ${key}`}
         </button>
       ))}
       {// Only render children where showFlag = true
