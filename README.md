@@ -45,3 +45,9 @@ If the child component knows nothing of the injected props, it will just work li
 This implementation of Bar has two flags- perists (to decide whether to save state before dismountig) and allowHide, to determine whether it can be dismounted. It then has toggle buttons to play with these. The actual state of Bar is just a counter, which you can also increment.
 
 It's pretty much a bare-bones use case for a real-world use of useImperativeHandle.
+
+### useState for dynamic state
+
+In the React hooks documentation, it mentions useState must only be called at the "top level". This doesn't necessarily mean at the top of your function, it means it should not be wrapped in any nested conditional logic. After some research, I learned what they really mean: From the time your component is mounted, every time it is rendered, it must access hooks in the same order and quantity every time. This is because hooks use a simple sequential allocation strategy, and if you change things up between renders, then it is going to hand out state in the wrong order.
+
+So you can create hooks "not at the top level" -- as long as you do it the same way every time with every render in a mount/dismount cycle. I take advantage of this in order to map a state hook to every child, regardless of how many children there are. As long as no other component is doing something to alter my children when I'm not looking (which doesn't seem like a legal thing to do) then this should work. This opens some interesting possibilities.
