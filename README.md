@@ -1,68 +1,53 @@
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+### Test of React useImperativeHandle hook
 
-## Available Scripts
+I wanted to play with the various hooks, and useImperativeHandle seemed the most unclear to me- both from the official docs and from the examples one can find floating around.
 
-In the project directory, you can run:
+Knowing how to make it work is one thing, but understanding why it's there is really what I was after.
 
-### `npm start`
+My take on it is: useImperativeHandle is a generalization of React references. References are designed to be used in a JSX context, with special ref takes placed in the JSX, which are connected to the injected ref instance. JSX just translates to code, so this could obviously be done manually- potentially allowing refs to be used in other scenarios (I haven't tried, so I don't know for sure).
 
-Runs the app in the development mode.<br>
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+But why would you want to generalize a ref? The common example used for references, is in order for a parent to set the focus on a field in it's child. The ref then connects directly to the underlying DOM element, and, voila, you can set focus to the right field when you need to. 
 
-The page will reload if you make edits.<br>
-You will also see any lint errors in the console.
+In React, data and props flow down the DOM. Since callbacks are passed as data, then the program flow of callbacks goes back up the tree. References are the one way, that I know of at least (and I'm sure there's much I don't know), to call down into the tree.
 
-### `npm test`
+So when might you want to call down into a tree? An example I can think of, is when you have a component that will mount/dismount it's children. This is, of course, done all the time in React. Routers do this. Page animators / sliders do it. Lots of components mount/dismount their children. But what if the child is doing something important, and doesn't want to be unmounted? Or what if you have some other handshake that you want to implement with your child components - something that isn't best done through passing properties?
 
-Launches the test runner in the interactive watch mode.<br>
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+This seems to be what useImperativeHandle is for. Perhaps this is considered bad form, or an anti-pattern in React - so just because this can be done, doesn't mean that it should. And to be sure, it could be accomplished through state, props and callbacks. It is just a little cleaner, this way IMO.
 
-### `npm run build`
+Here's what I've implemented. Let's say I've create a component Foo. Inside of Foo, I have an arbitrary collection/depth of child components. In my case, of course, I have Bar's:
 
-Builds the app for production to the `build` folder.<br>
-It correctly bundles React in production mode and optimizes the build for the best performance.
+```javascript
+const App = props => {
+  return (
+    <Foo>
+      <Bar>This is Bar 0</Bar>
+      <Bar>This is Bar 1</Bar>
+      <Bar>This is Bar 2</Bar>
+    </Foo>
+  );
+};
+```
+Foo wants to be able to control the mount/dismount of it's children. But these children are arbitray components- they should work without knowing anything about Foo. But mounting/dismounting components can be a problem, if the component is managing local state and doesn't expected to be dismounted when the app is running.
 
-The build is minified and the filenames include the hashes.<br>
-Your app is ready to be deployed!
+So I wanted to do two things:
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+1) For Foo to provide an interface to it's child components that can be used to persist child state. The child could use this state for every state update - but this would result in unecessary re-rendering. Instead, it just initializes it's local state from this state, persists it back to the parent state-stash prior to being dismounted. This is already pretty useful and searching StackOverflow shows lots of people have struggle with re-initializing state for various reasons. But ...
+2) What if the child component is doing something important and doesn't want to be dismounted by the parent? In this case, the parent can call the child and ask "Can I dismount you now?", giving the component the option to veto the dismount.
 
-### `npm run eject`
+Again, I don't know if this is good React practice. And I do know this can also be accomlished with state and callbacks. But using useImperativeHandle seems to be a cleaner way for a child to say to the parent "Heres some functions you can call to notify me of ...".
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+I guess the risk, is this can lead to developers introducing all sorts of different component-specific lifecyle 'call-ins' - and these could easily conflict with React. But it's useful to understand the paradigm. After all, if setting inputFocus is a legitimate reason for a parent to call down into it's children, there are bound to be other valid scenarios.
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+In my test scenario, The Foo class has 3 buttons to toggle the display of it's children. But before hiding them, Foo will call down into Bar to ask the component if it can be hidden. Foo also passes initialState into the components - by injecting a state object and a setter for that state. Foo then passes a reference through the normal forwardRef HOC.
 
-Instead, it will copy all the configuration files and the transitive dependencies (Webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+If the child component knows nothing of the injected props, it will just work like a normal component. But - it will get reinitialized whenever Foo hides/unhides it. By accessing the ref, with useImperativeHandle and providing a canHide "call-in", it can coordinate with the parent. It can then use the injected initState and saveState methods to save it's state across mount/dismount.
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+This implementation of Bar has two flags- perists (to decide whether to save state before dismountig) and allowHide, to determine whether it can be dismounted. It then has toggle buttons to play with these. The actual state of Bar is just a counter, which you can also increment.
 
-## Learn More
+It's pretty much a bare-bones use case for a real-world use of useImperativeHandle.
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+### useState for dynamic state
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+In the React hooks documentation, it mentions useState must only be called at the "top level". This doesn't necessarily mean at the top of your function, it means it should not be wrapped in any nested conditional logic. After some research, I learned what they really mean: From the time your component is mounted, every time it is rendered, it must access hooks in the same order and quantity every time. This is because hooks use a simple sequential allocation strategy, and if you change things up between renders, then it is going to hand out state in the wrong order.
 
-### Code Splitting
-
-This section has moved here: https://facebook.github.io/create-react-app/docs/code-splitting
-
-### Analyzing the Bundle Size
-
-This section has moved here: https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size
-
-### Making a Progressive Web App
-
-This section has moved here: https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app
-
-### Advanced Configuration
-
-This section has moved here: https://facebook.github.io/create-react-app/docs/advanced-configuration
-
-### Deployment
-
-This section has moved here: https://facebook.github.io/create-react-app/docs/deployment
-
-### `npm run build` fails to minify
-
-This section has moved here: https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify
+So you can create hooks "not at the top level" -- as long as you do it the same way every time with every render in a mount/dismount cycle. I take advantage of this in order to map a state hook to every child, regardless of how many children there are. As long as no other component is doing something to alter my children when I'm not looking (which doesn't seem like a legal thing to do) then this should work. This opens some interesting possibilities.
